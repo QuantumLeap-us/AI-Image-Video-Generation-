@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Image Generation</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <div id="noticeContainer" class="notice-container"></div>
+    <div class="container">
+        <div class="left-panel">
+            <div class="header-row">
+                <h1>AI Image Generation</h1>
+                <div class="config-select">
+                    <label for="configSelect">Config</label>
+                    <select id="configSelect"></select>
+                </div>
+            </div>
+
+            <div class="input-section">
+                <label for="prompt">Prompt</label>
+                <textarea id="prompt" rows="4" placeholder="Enter image description..."></textarea>
+
+                <div class="ratio-section">
+                    <span class="ratio-label">Aspect Ratio</span>
+                    <div class="ratio-options">
+                        <label class="ratio-option">
+                            <input type="radio" name="ratio" value="default" checked>
+                            <span class="ratio-card">
+                                <span class="ratio-preview ratio-default"></span>
+                                <span class="ratio-text">Default</span>
+                            </span>
+                        </label>
+                        <label class="ratio-option">
+                            <input type="radio" name="ratio" value="9:16">
+                            <span class="ratio-card">
+                                <span class="ratio-preview ratio-9-16"></span>
+                                <span class="ratio-text">9:16</span>
+                            </span>
+                        </label>
+                        <label class="ratio-option">
+                            <input type="radio" name="ratio" value="16:9">
+                            <span class="ratio-card">
+                                <span class="ratio-preview ratio-16-9"></span>
+                                <span class="ratio-text">16:9</span>
+                            </span>
+                        </label>
+                        <label class="ratio-option">
+                            <input type="radio" name="ratio" value="4:3">
+                            <span class="ratio-card">
+                                <span class="ratio-preview ratio-4-3"></span>
+                                <span class="ratio-text">4:3</span>
+                            </span>
+                        </label>
+                        <label class="ratio-option">
+                            <input type="radio" name="ratio" value="1:1">
+                            <span class="ratio-card">
+                                <span class="ratio-preview ratio-1-1"></span>
+                                <span class="ratio-text">1:1</span>
+                            </span>
+                        </label>
+                    </div>
+                </div>
+
+                <label for="count">Image Count (1-10)</label>
+                <input type="number" id="count" min="1" max="10" value="1">
+
+                <button id="generateBtn" class="btn-primary">
+                    <span class="btn-icon" aria-hidden="true">&#9658;</span>
+                    <span class="btn-label">Generate</span>
+                </button>
+            </div>
+
+            <div class="tasks-section">
+                <h3>Tasks</h3>
+                <div id="tasksList"></div>
+            </div>
+        </div>
+
+        <div class="right-panel">
+            <div id="imagesGrid" class="images-grid"></div>
+            <div class="pagination">
+                <button id="prevPage" class="btn-secondary">Prev</button>
+                <span id="pageInfo"></span>
+                <button id="nextPage" class="btn-secondary">Next</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Image Preview Modal -->
+    <div id="previewModal" class="modal">
+        <span class="close">&times;</span>
+        <button id="previewPrev" class="preview-nav preview-prev" type="button" aria-label="Previous"></button>
+        <button id="previewNext" class="preview-nav preview-next" type="button" aria-label="Next"></button>
+        <img id="previewImage" class="modal-image">
+    </div>
+
+    <!-- Prompt Info Modal -->
+    <div id="promptModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h3>Prompt</h3>
+            <p id="promptText"></p>
+        </div>
+    </div>
+
+    <!-- Video Config Modal -->
+    <div id="videoConfigModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h3>Convert to Video</h3>
+            <div class="video-config-form">
+                <label>Aspect Ratio</label>
+                <div class="video-ratio-options">
+                    <label class="ratio-option">
+                        <input type="radio" name="videoRatio" value="16:9" checked>
+                        <span class="ratio-card">
+                            <span class="ratio-preview ratio-16-9"></span>
+                            <span class="ratio-text">16:9</span>
+                        </span>
+                    </label>
+                    <label class="ratio-option">
+                        <input type="radio" name="videoRatio" value="9:16">
+                        <span class="ratio-card">
+                            <span class="ratio-preview ratio-9-16"></span>
+                            <span class="ratio-text">9:16</span>
+                        </span>
+                    </label>
+                    <label class="ratio-option">
+                        <input type="radio" name="videoRatio" value="1:1">
+                        <span class="ratio-card">
+                            <span class="ratio-preview ratio-1-1"></span>
+                            <span class="ratio-text">1:1</span>
+                        </span>
+                    </label>
+                </div>
+                <label for="videoDuration">Duration</label>
+                <select id="videoDuration">
+                    <option value="5">5 seconds</option>
+                    <option value="10">10 seconds</option>
+                </select>
+                <label for="videoPrompt">Motion Description (optional)</label>
+                <textarea id="videoPrompt" rows="3" placeholder="Describe the animation effect you want..."></textarea>
+                <button id="generateVideoBtn" class="btn-primary">
+                    <span class="btn-icon" aria-hidden="true">&#9658;</span>
+                    <span class="btn-label">Generate Video</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
