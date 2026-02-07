@@ -1,0 +1,19 @@
+{
+  "max_concurrent": 2,
+  "api_configs": [
+    {
+      "name": "grok",
+      "base_url": "https://your-api-endpoint.com",
+      "api_key": "your-api-key-here",
+      "model": "grok-imagine-1.0",
+      "proxy": ""
+    },
+    {
+      "name": "grok-video",
+      "base_url": "https://your-api-endpoint.com",
+      "api_key": "your-api-key-here",
+      "model": "grok-imagine-1.0-video",
+      "proxy": ""
+    }
+  ]
+}

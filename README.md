@@ -42,9 +42,13 @@ pip install -r requirements.txt
 
 ### 2. Configure API
 
-Copy the sample config file:
+Copy the example config file:
 ```bash
-cp data/configs.json.sample data/configs.json
+# Windows
+copy data\configs.example.json data\configs.json
+
+# Linux/macOS
+cp data/configs.example.json data/configs.json
 ```
 
 Edit `data/configs.json` with your API credentials:
@@ -115,8 +119,9 @@ aig_pic/
 ├── app.py              # FastAPI main application
 ├── requirements.txt    # Python dependencies
 ├── data/
-│   ├── app.db          # SQLite database
-│   └── configs.json    # API configuration
+│   ├── app.db          # SQLite database (auto-generated)
+│   ├── configs.json    # API configuration (create from example)
+│   └── configs.example.json  # Example configuration
 ├── src/
 │   ├── client.py       # External API client (image & video)
 │   ├── config.py       # Configuration management
