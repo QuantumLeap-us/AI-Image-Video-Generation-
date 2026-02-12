@@ -111,14 +111,18 @@ class TaskQueue:
                 logger.info(f"Worker {worker_id} processing task {task_id}")
 
                 try:
-                    # Generate images or video
-                    filenames = await asyncio.to_thread(
-                        _run_generate_images,
-                        task.settings,
-                        task.prompt,
-                        task.n,
-                        task.video_config,
-                        task.source_image
+                    # Generate images or video with timeout (5 min for images, 10 min for video)
+                    timeout = 600 if task.video_config else 300
+                    filenames = await asyncio.wait_for(
+                        asyncio.to_thread(
+                            _run_generate_images,
+                            task.settings,
+                            task.prompt,
+                            task.n,
+                            task.video_config,
+                            task.source_image
+                        ),
+                        timeout=timeout
                     )
 
                     # Save to database
@@ -130,6 +134,17 @@ class TaskQueue:
                     task.status = TaskStatus.SUCCEEDED
 
                     logger.info(f"Worker {worker_id} completed task {task_id}")
+
+                except asyncio.CancelledError:
+                    task.status = TaskStatus.FAILED
+                    task.error = "Task cancelled due to shutdown"
+                    logger.warning(f"Worker {worker_id} task {task_id} cancelled during execution")
+                    raise
+
+                except asyncio.TimeoutError:
+                    task.status = TaskStatus.FAILED
+                    task.error = "Task timed out"
+                    logger.error(f"Worker {worker_id} task {task_id} timed out")
 
                 except Exception as e:
                     task.status = TaskStatus.FAILED
