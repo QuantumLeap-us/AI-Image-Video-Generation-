@@ -13,6 +13,7 @@
             <div class="header-row">
                 <h1>AI Image Generation</h1>
                 <div class="config-select">
+                    <button id="configManageBtn" class="btn-icon-only" title="Manage Configs">⚙️</button>
                     <label for="configSelect">Config</label>
                     <select id="configSelect"></select>
                 </div>
@@ -145,6 +146,52 @@
                 <button id="generateVideoBtn" class="btn-primary">
                     <span class="btn-icon" aria-hidden="true">&#9658;</span>
                     <span class="btn-label">Generate Video</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Config Management Modal -->
+    <div id="configModal" class="modal">
+        <div class="modal-content config-modal-content">
+            <span class="close">&times;</span>
+            <h3>Config Management</h3>
+            <div class="config-manage-section">
+                <div class="config-manage-header">
+                    <label>Max Concurrent Tasks</label>
+                    <div class="concurrent-control">
+                        <input type="number" id="maxConcurrent" min="1" max="10" value="2">
+                        <button id="saveConcurrentBtn" class="btn-sm">Save</button>
+                    </div>
+                </div>
+                <div class="config-list-header">
+                    <span>API Configs</span>
+                    <button id="addConfigBtn" class="btn-sm btn-add">+ Add</button>
+                </div>
+                <div id="configList" class="config-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Config Edit Modal -->
+    <div id="configEditModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h3 id="configEditTitle">Add Config</h3>
+            <div class="config-edit-form">
+                <input type="hidden" id="configEditOrigName">
+                <label for="configEditName">Name</label>
+                <input type="text" id="configEditName" placeholder="e.g. grok">
+                <label for="configEditBaseUrl">Base URL</label>
+                <input type="text" id="configEditBaseUrl" placeholder="https://api.example.com">
+                <label for="configEditApiKey">API Key</label>
+                <input type="text" id="configEditApiKey" placeholder="sk-...">
+                <label for="configEditModel">Model</label>
+                <input type="text" id="configEditModel" placeholder="grok-imagine-1.0">
+                <label for="configEditProxy">Proxy (optional)</label>
+                <input type="text" id="configEditProxy" placeholder="">
+                <button id="configEditSaveBtn" class="btn-primary">
+                    <span class="btn-label">Save</span>
                 </button>
             </div>
         </div>

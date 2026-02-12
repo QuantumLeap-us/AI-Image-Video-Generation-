@@ -1,5 +1,6 @@
 import json
 import os
+import copy
 from typing import Dict, List, Optional, Tuple
 
 
@@ -62,3 +63,60 @@ def list_config_summaries() -> Dict:
         default = summaries[0]["name"]
 
     return {"configs": summaries, "default": default}
+
+
+def _save_config_data(data: Dict) -> None:
+    os.makedirs(os.path.dirname(CONFIG_PATH) or ".", exist_ok=True)
+    with open(CONFIG_PATH, "w", encoding="utf-8") as file:
+        json.dump(data, file, indent=2, ensure_ascii=False)
+
+
+def get_full_configs() -> Dict:
+    """Return the full configs data including api_key for management UI."""
+    data = _load_config_data()
+    configs = data.get("api_configs", [])
+    max_concurrent = data.get("max_concurrent", 2)
+    return {"api_configs": configs, "max_concurrent": max_concurrent}
+
+
+def add_config(config: Dict) -> Dict:
+    data = _load_config_data()
+    configs = data.get("api_configs", [])
+    for c in configs:
+        if c.get("name") == config.get("name"):
+            raise ValueError(f"Config '{config['name']}' already exists")
+    configs.append(config)
+    data["api_configs"] = configs
+    _save_config_data(data)
+    return config
+
+
+def update_config(name: str, config: Dict) -> Dict:
+    data = _load_config_data()
+    configs = data.get("api_configs", [])
+    for i, c in enumerate(configs):
+        if c.get("name") == name:
+            configs[i] = config
+            data["api_configs"] = configs
+            _save_config_data(data)
+            return config
+    raise ValueError(f"Config '{name}' not found")
+
+
+def delete_config(name: str) -> bool:
+    data = _load_config_data()
+    configs = data.get("api_configs", [])
+    new_configs = [c for c in configs if c.get("name") != name]
+    if len(new_configs) == len(configs):
+        raise ValueError(f"Config '{name}' not found")
+    data["api_configs"] = new_configs
+    _save_config_data(data)
+    return True
+
+
+def update_max_concurrent(value: int) -> int:
+    data = _load_config_data()
+    value = max(1, min(10, value))
+    data["max_concurrent"] = value
+    _save_config_data(data)
+    return value

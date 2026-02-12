@@ -599,3 +599,196 @@ async function generateVideo() {
         selectedImageId = null;
     }
 }
+
+
+// ---- Config Management ----
+
+function setupConfigManagement() {
+    document.getElementById('configManageBtn').addEventListener('click', openConfigModal);
+    document.getElementById('addConfigBtn').addEventListener('click', () => openConfigEditModal());
+    document.getElementById('configEditSaveBtn').addEventListener('click', saveConfigEdit);
+    document.getElementById('saveConcurrentBtn').addEventListener('click', saveMaxConcurrent);
+}
+
+// Call setup on DOMContentLoaded
+document.addEventListener('DOMContentLoaded', setupConfigManagement);
+
+async function openConfigModal() {
+    try {
+        const response = await fetch('/api/configs/full');
+        if (!response.ok) throw new Error('Failed to load configs');
+        const data = await response.json();
+
+        document.getElementById('maxConcurrent').value = data.max_concurrent || 2;
+        renderConfigList(data.api_configs || []);
+        document.getElementById('configModal').style.display = 'block';
+    } catch (error) {
+        showNotice(`Error: ${error.message}`);
+    }
+}
+
+function renderConfigList(configs) {
+    const container = document.getElementById('configList');
+    if (!configs.length) {
+        container.innerHTML = '<p style="color: #64748b; text-align: center; padding: 20px;">No configs yet. Click "+ Add" to create one.</p>';
+        return;
+    }
+    container.innerHTML = configs.map(c => `
+        <div class="config-card">
+            <div class="config-card-info">
+                <span class="config-card-name">${escapeHtml(c.name)}</span>
+                <span class="config-card-detail">${escapeHtml(c.model || '')} · ${escapeHtml(truncateUrl(c.base_url || ''))}</span>
+            </div>
+            <div class="config-card-actions">
+                <button class="btn-sm" onclick="openConfigEditModal('${escapeAttr(c.name)}')">Edit</button>
+                <button class="btn-sm btn-danger" onclick="deleteConfigItem('${escapeAttr(c.name)}')">Delete</button>
+            </div>
+        </div>
+    `).join('');
+}
+
+function truncateUrl(url) {
+    try {
+        const u = new URL(url);
+        return u.hostname;
+    } catch {
+        return url.length > 30 ? url.substring(0, 30) + '...' : url;
+    }
+}
+
+function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
+function escapeAttr(str) {
+    return str.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+}
+
+async function openConfigEditModal(name) {
+    const titleEl = document.getElementById('configEditTitle');
+    const origNameEl = document.getElementById('configEditOrigName');
+    const nameEl = document.getElementById('configEditName');
+    const baseUrlEl = document.getElementById('configEditBaseUrl');
+    const apiKeyEl = document.getElementById('configEditApiKey');
+    const modelEl = document.getElementById('configEditModel');
+    const proxyEl = document.getElementById('configEditProxy');
+
+    if (name) {
+        titleEl.textContent = 'Edit Config';
+        try {
+            const response = await fetch('/api/configs/full');
+            const data = await response.json();
+            const config = (data.api_configs || []).find(c => c.name === name);
+            if (!config) {
+                showNotice('Config not found');
+                return;
+            }
+            origNameEl.value = name;
+            nameEl.value = config.name || '';
+            baseUrlEl.value = config.base_url || '';
+            apiKeyEl.value = config.api_key || '';
+            modelEl.value = config.model || '';
+            proxyEl.value = config.proxy || '';
+        } catch (error) {
+            showNotice(`Error: ${error.message}`);
+            return;
+        }
+    } else {
+        titleEl.textContent = 'Add Config';
+        origNameEl.value = '';
+        nameEl.value = '';
+        baseUrlEl.value = '';
+        apiKeyEl.value = '';
+        modelEl.value = 'grok-imagine-1.0';
+        proxyEl.value = '';
+    }
+
+    document.getElementById('configEditModal').style.display = 'block';
+}
+
+async function saveConfigEdit() {
+    const origName = document.getElementById('configEditOrigName').value;
+    const payload = {
+        name: document.getElementById('configEditName').value.trim(),
+        base_url: document.getElementById('configEditBaseUrl').value.trim(),
+        api_key: document.getElementById('configEditApiKey').value.trim(),
+        model: document.getElementById('configEditModel').value.trim() || 'grok-imagine-1.0',
+        proxy: document.getElementById('configEditProxy').value.trim()
+    };
+
+    if (!payload.name || !payload.base_url || !payload.api_key) {
+        showNotice('Name, Base URL, and API Key are required');
+        return;
+    }
+
+    try {
+        let response;
+        if (origName) {
+            response = await fetch(`/api/configs/items/${encodeURIComponent(origName)}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+        } else {
+            response = await fetch('/api/configs/items', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+        }
+
+        if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err.detail || 'Failed to save config');
+        }
+
+        showNotice(origName ? 'Config updated' : 'Config created');
+        document.getElementById('configEditModal').style.display = 'none';
+        // Refresh config list and dropdown
+        openConfigModal();
+        loadConfigOptions();
+    } catch (error) {
+        showNotice(`Error: ${error.message}`);
+    }
+}
+
+async function deleteConfigItem(name) {
+    if (!confirm(`Delete config "${name}"?`)) return;
+
+    try {
+        const response = await fetch(`/api/configs/items/${encodeURIComponent(name)}`, {
+            method: 'DELETE'
+        });
+        if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err.detail || 'Failed to delete config');
+        }
+        showNotice('Config deleted');
+        openConfigModal();
+        loadConfigOptions();
+    } catch (error) {
+        showNotice(`Error: ${error.message}`);
+    }
+}
+
+async function saveMaxConcurrent() {
+    const value = parseInt(document.getElementById('maxConcurrent').value);
+    if (isNaN(value) || value < 1 || value > 10) {
+        showNotice('Max concurrent must be between 1 and 10');
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/configs/max-concurrent', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(value)
+        });
+        if (!response.ok) throw new Error('Failed to update');
+        showNotice('Max concurrent updated');
+    } catch (error) {
+        showNotice(`Error: ${error.message}`);
+    }
+}

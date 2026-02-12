@@ -569,3 +569,172 @@ input::placeholder {
     font-size: 11px;
     font-weight: 600;
 }
+
+
+/* Config Management */
+.btn-icon-only {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    border: 1px solid #273449;
+    background: #1e2637;
+    cursor: pointer;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+}
+
+.btn-icon-only:hover {
+    background: #334155;
+}
+
+.config-modal-content {
+    max-width: 600px;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.config-manage-section {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.config-manage-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.config-manage-header label {
+    margin-bottom: 0;
+    font-size: 14px;
+}
+
+.concurrent-control {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.concurrent-control input {
+    width: 70px;
+    margin-bottom: 0;
+}
+
+.config-list-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 8px;
+    border-top: 1px solid #1f2937;
+}
+
+.config-list-header span {
+    font-weight: 500;
+    font-size: 14px;
+    color: #cbd5f5;
+}
+
+.btn-sm {
+    padding: 4px 12px;
+    border: 1px solid #273449;
+    border-radius: 4px;
+    background: #1e2637;
+    color: #e2e8f0;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.btn-sm:hover {
+    background: #334155;
+}
+
+.btn-add {
+    border-color: #3b82f6;
+    color: #60a5fa;
+}
+
+.btn-add:hover {
+    background: rgba(59, 130, 246, 0.15);
+}
+
+.btn-danger {
+    border-color: #dc3545;
+    color: #f87171;
+}
+
+.btn-danger:hover {
+    background: rgba(220, 53, 69, 0.15);
+}
+
+.config-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.config-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    background: #111827;
+    border-radius: 6px;
+    border: 1px solid #1f2937;
+}
+
+.config-card-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.config-card-name {
+    font-weight: 600;
+    font-size: 14px;
+    color: #e2e8f0;
+}
+
+.config-card-detail {
+    font-size: 12px;
+    color: #64748b;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.config-card-actions {
+    display: flex;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.config-edit-form {
+    display: flex;
+    flex-direction: column;
+}
+
+.config-edit-form label {
+    margin-bottom: 4px;
+    margin-top: 8px;
+}
+
+.config-edit-form label:first-of-type {
+    margin-top: 0;
+}
+
+.config-edit-form input[type="text"] {
+    margin-bottom: 4px;
+}
+
+.config-edit-form .btn-primary {
+    margin-top: 16px;
+}

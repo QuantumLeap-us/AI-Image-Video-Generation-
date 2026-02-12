@@ -9,7 +9,10 @@ import time
 
 from src.tasks import task_queue
 from src.db import list_images, get_prompt, delete_image, get_image_by_id, reset_running_tasks_to_queued, cleanup_orphaned_records
-from src.config import list_config_summaries, select_config, get_max_concurrent
+from src.config import (
+    list_config_summaries, select_config, get_max_concurrent,
+    get_full_configs, add_config, update_config, delete_config, update_max_concurrent
+)
 
 # Setup logging
 logging.basicConfig(
@@ -89,6 +92,14 @@ class ConfigSummary(BaseModel):
 class ConfigListResponse(BaseModel):
     configs: list[ConfigSummary]
     default: Optional[str] = None
+
+
+class ConfigCreate(BaseModel):
+    name: str = Field(..., min_length=1)
+    base_url: str = Field(..., min_length=1)
+    api_key: str = Field(..., min_length=1)
+    model: str = Field(default="grok-imagine-1.0")
+    proxy: str = Field(default="")
 
 
 # Startup event
@@ -415,6 +426,72 @@ async def image_to_video(image_id: int, request: ImageToVideoRequest):
     except Exception as e:
         logger.error(f"Failed to create image-to-video task: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ---- Config Management API ----
+
+@app.get("/api/configs/full")
+async def get_full_configs_endpoint():
+    """Get full config data including api_keys for management UI"""
+    try:
+        return get_full_configs()
+    except FileNotFoundError:
+        return {"api_configs": [], "max_concurrent": 2}
+    except Exception as e:
+        logger.error(f"Failed to load full configs: {e}")
+        raise HTTPException(status_code=500, detail="Failed to load configs")
+
+
+@app.post("/api/configs/items")
+async def create_config(config_data: ConfigCreate):
+    """Add a new API config"""
+    try:
+        result = add_config(config_data.model_dump())
+        # Reload config summaries for dropdown
+        return {"message": "Config created", "config": result}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Failed to create config: {e}")
+        raise HTTPException(status_code=500, detail="Failed to create config")
+
+
+@app.put("/api/configs/items/{name}")
+async def update_config_endpoint(name: str, config_data: ConfigCreate):
+    """Update an existing API config"""
+    try:
+        result = update_config(name, config_data.model_dump())
+        return {"message": "Config updated", "config": result}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"Failed to update config: {e}")
+        raise HTTPException(status_code=500, detail="Failed to update config")
+
+
+@app.delete("/api/configs/items/{name}")
+async def delete_config_endpoint(name: str):
+    """Delete an API config"""
+    try:
+        delete_config(name)
+        return {"message": "Config deleted"}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"Failed to delete config: {e}")
+        raise HTTPException(status_code=500, detail="Failed to delete config")
+
+
+@app.put("/api/configs/max-concurrent")
+async def update_max_concurrent_endpoint(max_concurrent: int = Body(..., ge=1, le=10)):
+    """Update max concurrent setting"""
+    try:
+        value = update_max_concurrent(max_concurrent)
+        task_queue.set_max_concurrent(value)
+        return {"max_concurrent": value}
+    except Exception as e:
+        logger.error(f"Failed to update max_concurrent: {e}")
+        raise HTTPException(status_code=500, detail="Failed to update setting")
 
 
 if __name__ == "__main__":
