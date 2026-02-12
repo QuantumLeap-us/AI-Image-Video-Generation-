@@ -462,24 +462,6 @@ input::placeholder {
     margin-bottom: 20px;
 }
 
-.config-select {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-left: auto;
-}
-
-.config-select label {
-    margin-bottom: 0;
-    font-size: 13px;
-    color: #94a3b8;
-}
-
-.config-select select {
-    width: 180px;
-    margin-bottom: 0;
-}
-
 /* Video Config Modal */
 .video-config-form {
     display: flex;

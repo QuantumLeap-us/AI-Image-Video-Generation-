@@ -25,10 +25,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Event Listeners
 function setupEventListeners() {
-    document.getElementById('configSelect').addEventListener('change', (event) => {
-        persistConfigSelection(event.target.value);
-    });
-
     // Generate button
     document.getElementById('generateBtn').addEventListener('click', generateImages);
 
@@ -73,47 +69,15 @@ async function loadConfigOptions() {
         const data = await response.json();
         availableConfigs = Array.isArray(data.configs) ? data.configs : [];
         defaultConfigName = data.default || (availableConfigs[0] ? availableConfigs[0].name : '');
-
-        const storedName = getStoredConfigName();
-        const selectedName = availableConfigs.some(config => config.name === storedName)
-            ? storedName
-            : defaultConfigName;
-
-        setConfigOptions(availableConfigs, selectedName);
     } catch (error) {
         console.error('Failed to load configs:', error);
-        setConfigOptions([], '');
+        availableConfigs = [];
+        defaultConfigName = '';
     }
-}
-
-function setConfigOptions(configs, selectedName) {
-    const select = document.getElementById('configSelect');
-    select.innerHTML = configs.length
-        ? configs.map(config => `<option value="${config.name}">${config.name}</option>`).join('')
-        : '<option value="">No configs available</option>';
-
-    if (selectedName) {
-        select.value = selectedName;
-        persistConfigSelection(selectedName);
-    }
-}
-
-function getStoredConfigName() {
-    return localStorage.getItem(CONFIG_KEY);
 }
 
 function getSelectedConfigName() {
-    const select = document.getElementById('configSelect');
-    if (select && select.value) {
-        return select.value;
-    }
-    return getStoredConfigName() || '';
-}
-
-function persistConfigSelection(name) {
-    if (name) {
-        localStorage.setItem(CONFIG_KEY, name);
-    }
+    return defaultConfigName || '';
 }
 
 function getSelectedRatio() {
@@ -277,15 +241,6 @@ async function generateImages() {
     // Validation
     if (!prompt) {
         showNotice('Please enter a prompt');
-        return;
-    }
-
-    if (!configName) {
-        showNotice('Please select a config');
-        const select = document.getElementById('configSelect');
-        if (select) {
-            select.focus();
-        }
         return;
     }
 
