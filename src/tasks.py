@@ -33,7 +33,7 @@ class Task:
         self.prompt = prompt
         self.n = n
         self.settings = settings
-        self.created_at = created_at or datetime.now().isoformat()
+        self.created_at = created_at or datetime.utcnow().isoformat() + "Z"
         self.started_at: Optional[str] = None
         self.finished_at: Optional[str] = None
         self.results: List[str] = []
@@ -100,7 +100,7 @@ class TaskQueue:
 
                 # Update status to running
                 task.status = TaskStatus.RUNNING
-                task.started_at = datetime.now().isoformat()
+                task.started_at = datetime.utcnow().isoformat() + "Z"
 
                 # Update database
                 update_task_status(task.task_id, TaskStatus.RUNNING, started_at=task.started_at)
@@ -152,7 +152,7 @@ class TaskQueue:
                     logger.error(f"Worker {worker_id} failed task {task_id}: {e}")
 
                 finally:
-                    task.finished_at = datetime.now().isoformat()
+                    task.finished_at = datetime.utcnow().isoformat() + "Z"
 
                     # Update database
                     update_task_status(

@@ -179,7 +179,7 @@ def _parse_version(version: str) -> Optional[Tuple[int, ...]]:
 
 def insert_image(filename: str, prompt: str) -> int:
     """Insert a new image record"""
-    created_at = datetime.now().isoformat()
+    created_at = datetime.utcnow().isoformat() + "Z"
 
     with get_db() as conn:
         cursor = conn.execute(
@@ -298,7 +298,7 @@ init_db()
 # Task database operations
 def insert_task(task_id: str, status: str, prompt: str, n: int, config_name: Optional[str] = None) -> int:
     """Insert a new task record"""
-    created_at = datetime.now().isoformat()
+    created_at = datetime.utcnow().isoformat() + "Z"
 
     with get_db() as conn:
         cursor = conn.execute(

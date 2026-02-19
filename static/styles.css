@@ -166,14 +166,14 @@ input::placeholder {
 }
 
 .ratio-options {
-    display: flex;
-    flex-wrap: nowrap;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
     gap: 6px;
 }
 
 .ratio-option {
     cursor: pointer;
-    display: inline-flex;
+    display: block;
 }
 
 .ratio-option input {
@@ -183,8 +183,9 @@ input::placeholder {
 .ratio-card {
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 4px;
-    padding: 4px 6px;
+    padding: 6px 4px;
     border-radius: 6px;
     border: 1px solid #1f2937;
     background: #111827;
@@ -197,9 +198,9 @@ input::placeholder {
 }
 
 .ratio-preview {
-    height: 26px;
+    height: 20px;
     aspect-ratio: 1 / 1;
-    border-radius: 4px;
+    border-radius: 3px;
     border: 1px solid #475569;
     background: repeating-linear-gradient(
         45deg,
@@ -237,7 +238,7 @@ input::placeholder {
 
 @media (max-width: 520px) {
     .ratio-options {
-        flex-wrap: wrap;
+        gap: 4px;
     }
 }
 

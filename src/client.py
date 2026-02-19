@@ -1,3 +1,4 @@
+import asyncio
 import httpx
 import base64
 import json
@@ -414,43 +415,75 @@ async def _generate_video(settings: Dict, prompt: str, video_config: Dict, sourc
     return []
 
 
+
 async def _save_video_from_url(video_url: str, prompt: str, client: httpx.AsyncClient) -> str:
-    """Download and save video from URL"""
+    """Download and save video from URL, with retry for async generation"""
     os.makedirs("output", exist_ok=True)
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     short_id = str(uuid.uuid4())[:8]
 
-    try:
-        # Download video
-        logger.info(f"Downloading video from: {video_url}")
-        response = await client.get(video_url)
-        response.raise_for_status()
-        video_bytes = response.content
+    # Retry logic: video may not be ready immediately after API returns the URL
+    max_retries = 12
+    retry_delay = 10  # seconds between retries
+    last_error = None
 
-        # Determine file extension from content-type or URL
-        content_type = response.headers.get("content-type", "")
-        if "mp4" in content_type or video_url.endswith(".mp4"):
-            ext = "mp4"
-        elif "webm" in content_type or video_url.endswith(".webm"):
-            ext = "webm"
-        else:
-            ext = "mp4"  # default
+    for attempt in range(max_retries):
+        try:
+            if attempt > 0:
+                logger.info(f"Retry {attempt}/{max_retries}: waiting {retry_delay}s before downloading video...")
+                await asyncio.sleep(retry_delay)
 
-        # Sanitize filename to prevent path traversal
-        filename = f"{timestamp}_{short_id}.{ext}"
-        filepath = os.path.join("output", filename)
+            logger.info(f"Downloading video from: {video_url} (attempt {attempt + 1}/{max_retries})")
+            response = await client.get(video_url)
 
-        # Ensure the path is within output directory
-        if not os.path.abspath(filepath).startswith(os.path.abspath("output")):
-            raise ValueError("Invalid file path")
+            if response.status_code == 404:
+                logger.info(f"Video not ready yet (404), will retry...")
+                last_error = f"404 Not Found (attempt {attempt + 1})"
+                continue
 
-        with open(filepath, "wb") as f:
-            f.write(video_bytes)
+            response.raise_for_status()
+            video_bytes = response.content
 
-        logger.info(f"Saved video: {filename} ({len(video_bytes)} bytes)")
-        return filename
+            if len(video_bytes) < 1000:
+                logger.warning(f"Video file suspiciously small ({len(video_bytes)} bytes), retrying...")
+                last_error = f"File too small ({len(video_bytes)} bytes)"
+                continue
 
-    except Exception as e:
-        logger.error(f"Failed to download/save video: {e!r}")
-        raise
+            # Determine file extension from content-type or URL
+            content_type = response.headers.get("content-type", "")
+            if "mp4" in content_type or video_url.endswith(".mp4"):
+                ext = "mp4"
+            elif "webm" in content_type or video_url.endswith(".webm"):
+                ext = "webm"
+            else:
+                ext = "mp4"  # default
+
+            # Sanitize filename to prevent path traversal
+            filename = f"{timestamp}_{short_id}.{ext}"
+            filepath = os.path.join("output", filename)
+
+            # Ensure the path is within output directory
+            if not os.path.abspath(filepath).startswith(os.path.abspath("output")):
+                raise ValueError("Invalid file path")
+
+            with open(filepath, "wb") as f:
+                f.write(video_bytes)
+
+            logger.info(f"Saved video: {filename} ({len(video_bytes)} bytes)")
+            return filename
+
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                logger.info(f"Video not ready yet (404), will retry...")
+                last_error = str(e)
+                continue
+            logger.error(f"Failed to download/save video: {e!r}")
+            raise
+        except Exception as e:
+            logger.error(f"Failed to download/save video: {e!r}")
+            raise
+
+    # All retries exhausted
+    raise ValueError(f"Video download failed after {max_retries} attempts ({max_retries * retry_delay}s). Last error: {last_error}")
+
