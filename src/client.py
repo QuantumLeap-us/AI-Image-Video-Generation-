@@ -1,7 +1,9 @@
 import httpx
 import base64
+import json
 import os
 import logging
+import re
 from datetime import datetime
 from typing import List, Dict, Optional
 import uuid
@@ -112,10 +114,21 @@ async def _generate_batch(settings: Dict, prompt: str, n: int) -> List[str]:
 
             # Process response
             if "data" in data and len(data["data"]) > 0:
-                if data["data"][0].get("b64_json"):
+                first_item = data["data"][0]
+                b64_val = first_item.get("b64_json", "")
+                url_val = first_item.get("url", "")
+
+                # Some APIs return a URL inside the b64_json field
+                if b64_val and b64_val.startswith("http"):
+                    logger.info("b64_json field contains URL, treating as url response")
+                    for item in data["data"]:
+                        item["url"] = item.pop("b64_json", item.get("url", ""))
+                    filenames = await _save_url_images(data["data"], prompt, client)
+                    logger.info(f"Successfully saved {len(filenames)} images (b64_json->url)")
+                elif b64_val:
                     filenames = await _save_b64_images(data["data"], prompt)
                     logger.info(f"Successfully saved {len(filenames)} images (b64_json)")
-                elif data["data"][0].get("url"):
+                elif url_val:
                     filenames = await _save_url_images(data["data"], prompt, client)
                     logger.info(f"Successfully saved {len(filenames)} images (url)")
                 else:
@@ -285,13 +298,14 @@ async def _generate_video(settings: Dict, prompt: str, video_config: Dict, sourc
         # Text-to-video: plain text
         content = prompt
 
-    # Video generation payload
+    # Video generation payload - explicitly disable streaming for simpler parsing
     payload = {
         "model": model,
         "messages": [{
             "role": "user",
             "content": content
         }],
+        "stream": False,
         "video_config": video_config
     }
 
@@ -316,53 +330,82 @@ async def _generate_video(settings: Dict, prompt: str, video_config: Dict, sourc
                     err_msg = response.text
                 raise ValueError(f"API error (HTTP {response.status_code}): {err_msg}")
 
-            # Parse response, handle empty body
             response_text = response.text.strip()
             if not response_text:
                 raise ValueError("API returned empty response body")
 
-            data = response.json()
+            # Handle SSE streaming response (data: {...} format)
+            full_content = ""
+            data = None
 
-            # Check for error in 200 response
-            if "error" in data:
-                err_msg = data["error"].get("message", str(data["error"]))
-                raise ValueError(f"API error: {err_msg}")
+            if response_text.startswith("data:"):
+                logger.info("Video API returned SSE stream, parsing chunks...")
+                for line in response_text.split("\n"):
+                    line = line.strip()
+                    if not line or line == "data: [DONE]":
+                        continue
+                    if line.startswith("data: "):
+                        chunk_str = line[6:]
+                        try:
+                            chunk = json.loads(chunk_str)
+                            if "error" in chunk:
+                                err_msg = chunk["error"].get("message", str(chunk["error"]))
+                                raise ValueError(f"API error: {err_msg}")
+                            choices = chunk.get("choices", [])
+                            if choices:
+                                delta = choices[0].get("delta", {})
+                                content_piece = delta.get("content", "")
+                                if content_piece:
+                                    full_content += content_piece
+                        except json.JSONDecodeError:
+                            logger.warning(f"Failed to parse SSE chunk: {chunk_str[:200]}")
+                            continue
 
-            # Process response - video URL should be in the response
-            if "choices" in data and len(data["choices"]) > 0:
-                choice = data["choices"][0]
-                message = choice.get("message", {})
-                content = message.get("content", "")
-                
-                # Try to extract video URL from content
-                # The actual format depends on your API's response
-                # This is a generic implementation
-                video_url = None
+                logger.info(f"SSE assembled content: {full_content[:300]}")
+            else:
+                # Standard JSON response
+                data = response.json()
 
-                # Check if there's a direct video URL in the response
+                if "error" in data:
+                    err_msg = data["error"].get("message", str(data["error"]))
+                    raise ValueError(f"API error: {err_msg}")
+
+                if "choices" in data and len(data["choices"]) > 0:
+                    choice = data["choices"][0]
+                    message = choice.get("message", {})
+                    full_content = message.get("content", "")
+
+            # Extract video URL from content
+            if not full_content:
+                raise ValueError("No content in video API response")
+
+            video_url = None
+
+            # Check for direct URL in message (for non-SSE responses)
+            if data and "choices" in data:
+                message = data["choices"][0].get("message", {})
                 if "url" in message:
                     video_url = message["url"]
-                elif content and ("http" in content or "https" in content):
-                    # Try to extract URL from content
-                    import re
+
+            if not video_url and full_content:
+                if "http" in full_content:
                     # Match URLs ending with common video extensions
-                    urls = re.findall(r'https?://[^\s<>")\]]+\.(?:mp4|webm|mov|avi)', content)
+                    urls = re.findall(r'https?://[^\s<>")\]\\]+\.(?:mp4|webm|mov|avi)', full_content)
                     if urls:
                         video_url = urls[0]
                     else:
-                        # Fallback to general URL pattern but be more careful
-                        urls = re.findall(r'https?://[^\s<>")\]]+', content)
+                        # Fallback to general URL pattern
+                        urls = re.findall(r'https?://[^\s<>")\]\\]+', full_content)
                         if urls:
                             video_url = urls[0]
-                
-                if video_url:
-                    filename = await _save_video_from_url(video_url, prompt, client)
-                    logger.info(f"Successfully saved video: {filename}")
-                    return [filename]
-                else:
-                    raise ValueError("No video URL found in response")
+
+            if video_url:
+                filename = await _save_video_from_url(video_url, prompt, client)
+                logger.info(f"Successfully saved video: {filename}")
+                return [filename]
             else:
-                raise ValueError("Invalid response format")
+                # No URL found - report the content as error for debugging
+                raise ValueError(f"No video URL found in response. Content: {full_content[:200]}")
 
         except Exception as e:
             logger.error(f"Video generation failed: {e!r}")
