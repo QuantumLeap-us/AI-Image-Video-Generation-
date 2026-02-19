@@ -91,8 +91,24 @@ async def _generate_batch(settings: Dict, prompt: str, n: int) -> List[str]:
         try:
             logger.info(f"Generating {n} images with prompt: {prompt[:50]}...")
             response = await client.post(url, json=payload, headers=headers)
-            response.raise_for_status()
+
+            # Check for API-level errors before raise_for_status
+            if response.status_code != 200:
+                try:
+                    err_data = response.json()
+                    err_msg = err_data.get("error", {}).get("message", response.text)
+                except Exception:
+                    err_msg = response.text
+                logger.error(f"API error (HTTP {response.status_code}): {err_msg}")
+                raise ValueError(f"API error (HTTP {response.status_code}): {err_msg}")
+
             data = response.json()
+
+            # Check for error in 200 response (some APIs return errors with 200)
+            if "error" in data:
+                err_msg = data["error"].get("message", str(data["error"]))
+                logger.error(f"API returned error: {err_msg}")
+                raise ValueError(f"API error: {err_msg}")
 
             # Process response
             if "data" in data and len(data["data"]) > 0:
@@ -107,15 +123,30 @@ async def _generate_batch(settings: Dict, prompt: str, n: int) -> List[str]:
             else:
                 raise ValueError("No image data in response")
 
-        except (httpx.HTTPStatusError, KeyError, ValueError) as e:
+        except (KeyError, ValueError) as e:
+            # Only fallback for format/parsing issues, not API errors
+            if "API error" in str(e):
+                raise
             logger.warning(f"b64_json format failed, trying url format: {e}")
             # Fallback to url format
             payload["response_format"] = "url"
 
             try:
                 response = await client.post(url, json=payload, headers=headers)
-                response.raise_for_status()
+
+                if response.status_code != 200:
+                    try:
+                        err_data = response.json()
+                        err_msg = err_data.get("error", {}).get("message", response.text)
+                    except Exception:
+                        err_msg = response.text
+                    raise ValueError(f"API error (HTTP {response.status_code}): {err_msg}")
+
                 data = response.json()
+
+                if "error" in data:
+                    err_msg = data["error"].get("message", str(data["error"]))
+                    raise ValueError(f"API error: {err_msg}")
 
                 if "data" in data and len(data["data"]) > 0:
                     if "url" in data["data"][0]:
@@ -148,6 +179,10 @@ async def _save_b64_images(data: List[Dict], prompt: str) -> List[str]:
     for idx, item in enumerate(data, 1):
         try:
             b64_data = item["b64_json"]
+            # Fix base64 padding if missing
+            missing_padding = len(b64_data) % 4
+            if missing_padding:
+                b64_data += "=" * (4 - missing_padding)
             image_bytes = base64.b64decode(b64_data)
 
             # Sanitize filename to prevent path traversal
@@ -271,8 +306,27 @@ async def _generate_video(settings: Dict, prompt: str, video_config: Dict, sourc
             logger.info(f"Generating video with prompt: {prompt[:50]}...")
             logger.info(f"Video config: {video_config}")
             response = await client.post(url, json=payload, headers=headers)
-            response.raise_for_status()
+
+            # Check for API-level errors
+            if response.status_code != 200:
+                try:
+                    err_data = response.json()
+                    err_msg = err_data.get("error", {}).get("message", response.text)
+                except Exception:
+                    err_msg = response.text
+                raise ValueError(f"API error (HTTP {response.status_code}): {err_msg}")
+
+            # Parse response, handle empty body
+            response_text = response.text.strip()
+            if not response_text:
+                raise ValueError("API returned empty response body")
+
             data = response.json()
+
+            # Check for error in 200 response
+            if "error" in data:
+                err_msg = data["error"].get("message", str(data["error"]))
+                raise ValueError(f"API error: {err_msg}")
 
             # Process response - video URL should be in the response
             if "choices" in data and len(data["choices"]) > 0:
